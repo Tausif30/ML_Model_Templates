@@ -2,10 +2,11 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
-import xgboost as xgb
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import roc_auc_score, roc_curve, auc
+from sklearn.neural_network import MLPClassifier
+from sklearn.preprocessing import StandardScaler
 
 def main():
     # Load Data
@@ -21,32 +22,38 @@ def main():
     test.isnull().sum()
 
     # Preprocessing
-    train = train.drop(columns=["Id", "", ""]) # Drop Unnecessary Columns
-    test = test.drop(columns=["Id", "", ""]) # Drop Unnecessary Columns
-    cols_to_fill = ["", "", "", "", "", "", ""] # Columns to be used for Model Training
+    train = train.drop(columns=["Id", "", ""])  # Drop Unnecessary Columns
+    test = test.drop(columns=["Id", "", ""])    # Drop Unnecessary Columns
+
+    cols_to_fill = ["", "", "", "", "", "", ""]  # Columns to be used for Model Training
+
     for col in cols_to_fill:
         mean_value = train[col].mean()
         train[col] = train[col].fillna(mean_value)
         test[col] = test[col].fillna(mean_value)
+
     # Label Encoding
     label_encoders = {}
-    for c in ["", "", ""]: # Categorical Columns to be used for Model Training
+
+    for c in ["", "", ""]:  # Categorical Columns to be used for Model Training
         label_encoders[c] = LabelEncoder()
         label_encoders[c].fit(pd.concat([train[c], test[c]]).astype(str))
+
         train[c] = label_encoders[c].transform(train[c].astype(str))
         test[c] = label_encoders[c].transform(test[c].astype(str))
+
     train.head()
 
     # Feature Engineering
 
     # Separate features and target
-    X = train.drop(columns=["Predicted_Column"]) # Target Column to be used for Model Training
+    X = train.drop(columns=["Predicted_Column"])  # Target Column to be used for Model Training
     y = train["Predicted_Column"]
+
     X_test = test.copy()
 
     # 5-Fold Stratified Cross Validation
-
-    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    skf = StratifiedKFold(n_splits=5,shuffle=True,random_state=42)
     fold_auc_scores = []
     oof_preds = np.zeros(len(X))
     test_preds = np.zeros(len(X_test))
@@ -54,45 +61,45 @@ def main():
     plt.figure(figsize=(8, 6))
 
     for fold, (train_idx, val_idx) in enumerate(skf.split(X, y), start=1):
+
         X_train, X_val = X.iloc[train_idx], X.iloc[val_idx]
         y_train, y_val = y.iloc[train_idx], y.iloc[val_idx]
 
         print(f"Train Shape: {X_train.shape}")
         print(f"Valid Shape: {X_val.shape}")
-        # XGBoost Model
-        model = xgb.XGBClassifier(
-                n_estimators=300,
-                learning_rate=0.001,
-                max_depth=10,
-                subsample=0.5,
-                colsample_bytree=0.5,
-                random_state=42,
-                n_jobs=-1,
-                eval_metric='auc',
-                early_stopping_rounds=30,
-                min_child_weight=1,
-                gamma=0.1,
-                reg_alpha=0,
-                reg_lambda=1,
-                scale_pos_weight=1,
-                tree_method='exact',
-                max_bin=256
+
+        # Multilayer Perceptron Model
+        model = MLPClassifier(
+            hidden_layer_sizes=(128, 64, 32),
+            activation='relu',
+            solver='adam',
+            alpha=0.0001,
+            batch_size='auto',
+            learning_rate='adaptive',
+            learning_rate_init=0.001,
+            max_iter=500,
+            early_stopping=True,
+            validation_fraction=0.1,
+            n_iter_no_change=20,
+            random_state=42
             )
-        # Fit the model with early stopping
+        
+        # Fit the model
         model.fit(
             X_train, 
             y_train,
             eval_set=[(X_train, y_train), (X_val, y_val)],
             verbose=25
             )
-
         # Evaluation
         val_pred = model.predict_proba(X_val)[:, 1]
         fold_auc = roc_auc_score(y_val, val_pred)
         fold_auc_scores.append(fold_auc)
+        
         print(f"Fold {fold} AUC: {fold_auc:.4f}")
+
         oof_preds[val_idx] = val_pred
-        test_preds += (model.predict_proba(X_test)[:, 1]/ skf.n_splits)
+        test_preds += (model.predict_proba(X_test)[:, 1] / skf.n_splits)
 
         # ROC Curve for Fold
         fpr, tpr, _ = roc_curve(y_val, val_pred)
@@ -100,6 +107,7 @@ def main():
 
     # Performance Summary
     overall_auc = roc_auc_score(y, oof_preds)
+
     print(f"Mean CV AUC: {np.mean(fold_auc_scores):.4f}")
     print(f"Std CV AUC : {np.std(fold_auc_scores):.4f}")
     print(f"OOF AUC    : {overall_auc:.4f}")
@@ -111,10 +119,10 @@ def main():
     plt.title('5-Fold Cross Validation ROC Curves')
     plt.legend()
     plt.grid(alpha=0.3)
-    plt.savefig("roc_curve_xgboost.png",dpi=300,bbox_inches='tight')
+    plt.savefig("roc_curve_multilayer_perceptron.png",dpi=300,bbox_inches='tight')
     plt.show()
     prediction["Prediction"] = test_preds
-    prediction.to_csv("prediction.csv",index=False)
+    prediction.to_csv("prediction.csv", index=False)
 
 if __name__ == "__main__":
     main()
