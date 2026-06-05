@@ -99,10 +99,7 @@ def main():
 
         oof_preds[val_idx] = val_pred
 
-        test_preds += (
-            model.predict_proba(X_test)[:, 1]
-            / skf.n_splits
-        )
+        test_preds += (model.predict_proba(X_test)[:, 1]/ skf.n_splits)
 
         # ROC Curve for Fold
         fpr, tpr, _ = roc_curve(y_val, val_pred)

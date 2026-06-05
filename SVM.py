@@ -6,6 +6,7 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import roc_auc_score, roc_curve, auc
 from sklearn.svm import SVC
+from sklearn.preprocessing import StandardScaler
 
 def main():
     # Load Data
@@ -67,6 +68,13 @@ def main():
         print(f"Train Shape: {X_train.shape}")
         print(f"Valid Shape: {X_val.shape}")
 
+        # Feature Scaling
+        scaler = StandardScaler()
+
+        X_train_scaled = scaler.fit_transform(X_train)
+        X_val_scaled = scaler.transform(X_val)
+        X_test_scaled = scaler.transform(X_test)
+
         # SVM Model
         model = SVC(
             C=1.0,
@@ -75,23 +83,20 @@ def main():
             probability=True,
             random_state=42
         )
-        # Fit the model
-        model.fit(
-            X_train, 
-            y_train,
-            eval_set=[(X_train, y_train), (X_val, y_val)],
-            verbose=25
-            )
+
+        # Fit Model
+        model.fit(X_train_scaled, y_train)
 
         # Evaluation
-        val_pred = model.predict_proba(X_val)[:, 1]
+        val_pred = model.predict_proba(X_val_scaled)[:, 1]
+
         fold_auc = roc_auc_score(y_val, val_pred)
         fold_auc_scores.append(fold_auc)
-        
+
         print(f"Fold {fold} AUC: {fold_auc:.4f}")
 
         oof_preds[val_idx] = val_pred
-        test_preds += (model.predict_proba(X_test)[:, 1] / skf.n_splits)
+        test_preds += (model.predict_proba(X_test_scaled)[:, 1] / skf.n_splits)
 
         # ROC Curve for Fold
         fpr, tpr, _ = roc_curve(y_val, val_pred)
