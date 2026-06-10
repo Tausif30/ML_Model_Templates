@@ -13,7 +13,6 @@ import category_encoders as ce
 
 
 def main():
-
     # Load Data
     train = pd.read_csv("train.csv")
     test = pd.read_csv("test.csv")
@@ -38,10 +37,7 @@ def main():
     for c in ["", "", ""]:
         le = LabelEncoder()
         le.fit(
-            pd.concat(
-                [train[c], test[c]]
-            ).astype(str)
-        )
+        pd.concat([train[c], test[c]]).astype(str))
         train[c] = le.transform(train[c].astype(str))
         test[c] = le.transform(test[c].astype(str))
         label_encoders[c] = le
