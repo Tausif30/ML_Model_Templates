@@ -45,7 +45,6 @@ def main():
     X_test = test.copy()
 
     # 5-Fold Stratified Cross Validation
-
     skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
     fold_auc_scores = []
     oof_preds = np.zeros(len(X))
